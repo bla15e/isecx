@@ -1,0 +1,9 @@
+baseURL = 'https://ise.cx'
+languageCode = 'en-us'
+title = 'isecx'
+theme = "../../../ap-lit"
+[params]
+  description = "World Wide Website of Ise ChannelX"
+
+[markup.goldmark.renderer]
+  unsafe = true

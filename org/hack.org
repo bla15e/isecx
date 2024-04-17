@@ -1,0 +1,514 @@
+#+date: 2024-04-03T21:09:28-04:00
+#+hugo_front_matter_key_replace: description>summary
+
+A collection of programs empowering the reader to hack on the website.
+
+
+* Infecting a Cloud Machine with GNU Guix
+:PROPERTIES:
+:EXPORT_FILE_NAME: guix-cloud-infect
+:EXPORT_DESCRIPTION: Going viral with GNU Guix! Infect a host debian machine and transform it into a GNU Guix System!
+:END:
+If you can get a debian machine running on a VPS, then you can get a GNU Guix machine running on a VPS! Run this script as root and enjoy the winning!
+
+** guix-infect.sh
+#+begin_src shell :tangle ../hack/guix-infect/debian-infect.sh
+  #!/bin/bash
+
+  set -o errexit
+  set -o pipefail
+  # Test on:
+  # - Debian 11
+  #
+  # 1. Create a new CCX11 with Debian 11
+  # 2. Login with SSH
+  # 3. Paste this script into a setup.sh and run it
+  # 4. Wait for the script to complete
+
+  ###### MODIFY
+
+  TIMEZONE="Etc/UTC"
+  LOCALE="en_US.utf8"
+
+  ###### MODIFY END
+  GUIX_DAEMON_SYSTEMD_SERVICE=/etc/systemd/system/guix-daemon.service
+  BORDEAUX_SIGNING_KEY=~root/.config/guix/current/share/guix/bordeaux.guix.gnu.org.pub
+  CONFIG=/etc/bootstrap-config.scm
+  CHANNELS=/etc/guix/channels.scm
+
+  function main() {
+    echo "Preparing System"
+    install_xz_utils
+    install_guix_from_internet
+    install_root_user_guix_config
+    install_guix_info_files
+    install_guix_binary
+
+    add_guixbuild_group_and_users
+    install_and_start_systemd_daemon
+
+
+    echo "Setting up Guix binaries"
+    write_substitute_server_signing_key
+    guix_authorize_and_pull_noauth
+    guix_setup_locale
+    echo "Installing openssl and certs"
+    guix_install_openssl
+
+    echo "Writing System Scheme FIles"
+    write_server_config
+    write_system_channels
+    echo "Pulling Guix"
+    # TODO remove allow-downgrades flag
+    guix pull --allow-downgrades
+
+    echo "Building Guix"
+    guix_system_build_bootstrap
+    echo "Configuring Guix"
+    guix_system_configure_bootstrap
+  }
+
+  function install_xz_utils() {
+    apt-get update -y
+    apt-get install curl xz-utils -y
+  }
+
+  function install_guix_from_internet() {
+    wget https://ftp.gnu.org/gnu/guix/guix-binary-1.4.0.x86_64-linux.tar.xz
+    cd /tmp
+    tar --warning=no-timestamp -xf ~/guix-binary-1.4.0.x86_64-linux.tar.xz
+    mv var/guix /var/ && mv gnu /
+  }
+
+  function add_guixbuild_group_and_users() {
+    groupadd --system guixbuild
+    for i in `seq -w 1 10`;
+    do
+      useradd -g guixbuild -G guixbuild         \
+        -d /var/empty -s `which nologin`  \
+        -c "Guix build user $i" --system  \
+        guixbuilder$i;
+    done;
+  }
+
+  function install_root_user_guix_config() {
+    mkdir -p ~root/.config/guix
+    ln -sf /var/guix/profiles/per-user/root/current-guix ~root/.config/guix/current
+    export GUIX_PROFILE="`echo ~root`/.config/guix/current" ;
+    source $GUIX_PROFILE/etc/profile
+  }
+
+  function install_and_start_systemd_daemon() {
+    # TODO Replace!!
+    cp ~root/.config/guix/current/lib/systemd/system/guix-daemon.service /etc/systemd/system/
+    #write_systemd_daemon
+
+    # install and start guix systemd daemon
+    echo "starting guix-daemon"
+    systemctl start guix-daemon && systemctl enable guix-daemon
+  }
+
+  function write_systemd_daemon() {
+    cat >> $GUIX_DAEMON_SYSTEMD_SERVICE <<EOL
+  # This is a "service unit file" for the systemd init system to launch
+  # 'guix-daemon'.  Drop it in /etc/systemd/system or similar to have
+  # 'guix-daemon' automatically started.
+
+  [Unit]
+  Description=Build daemon for GNU Guix
+
+  [Service]
+  ExecStart=/var/guix/profiles/per-user/root/current-guix/bin/guix-daemon --build-users-group=guixbuild
+  Environment='GUIX_LOCPATH=/var/guix/profiles/per-user/root/guix-profile/lib/locale' LC_ALL=en_US.utf8/
+  RemainAfterExit=yes
+  StandardOutput=syslog
+  StandardError=syslog
+
+  # See <https://lists.gnu.org/archive/html/guix-devel/2016-04/msg00608.html>.
+  # Some package builds (for example, go@1.8.1) may require even more than
+  # 1024 tasks.
+  TasksMax=8192
+
+  [Install]
+  WantedBy=multi-user.target
+  EOL
+  }
+
+  function install_guix_info_files() {
+    mkdir -p /usr/local/share/info
+    cd /usr/local/share/info
+    for i in /var/guix/profiles/per-user/root/current-guix/share/info/*; do
+      ln -s $i; done
+  }
+
+  function install_guix_binary() {
+    # Install binary
+    mkdir -p /usr/local/bin
+    cd /usr/local/bin
+    ln -s /var/guix/profiles/per-user/root/current-guix/bin/guix
+  }
+
+  function write_substitute_server_signing_key() {
+    # For now we'll use Bordeaux, but later on let's try to switch to our own subsitute server
+      # substitutes,guixhub.com
+      echo "Doing Nothing to write the substitute server signing key lol"
+  }
+
+  function guix_authorize_and_pull_noauth() {
+    # Replace this with bourdeaux ssigning key I believe
+    guix archive --authorize < ~root/.config/guix/current/share/guix/bordeaux.guix.gnu.org.pub
+    guix archive --authorize < ~root/.config/guix/current/share/guix/ci.guix.gnu.org.pub
+    # Why did they comment out the guix pull? it's pretty friggen important if you ask me
+    guix pull
+
+    hash guix
+  }
+
+  function guix_setup_locale() {
+    guix package -i glibc-utf8-locales-2.29
+    export GUIX_LOCPATH="$HOME/.guix-profile/lib/locale"
+  }
+
+  function guix_install_openssl() {
+    guix package -i nss-certs gnutls
+  }
+
+  function write_server_config() {
+    cat >> $CONFIG <<EOL
+  ;; ise-sx default configuration
+  ;; /etc/system.scm
+
+  (use-modules
+  (gnu system)
+  (ise system))
+  (operating-system
+    (inherit (ise-managed-system))
+    (host-name "change-me-by-deploying-a-system"))
+  EOL
+  }
+
+  function write_ssh_pub_keys() {
+    echo "writing SSH pubs keys you specified"
+  }
+
+  function write_system_channels() {
+    # TODO Replace with file template
+    cat >> $CHANNELS <<EOL
+  ;; ISE Default Channel
+  (cons*
+        (channel
+          (name 'isecx)
+          (url "https://gitlab.com/bla15e/gc")
+          (branch "main"))
+        %default-channels)
+  EOL
+  }
+
+  # This is necessary for setting up deploy, but we aint here yet
+  #write_signing_key
+  # guix archive --authorize < /etc/packages.pantherx.org.pub
+  # guix pull --disable-authentication --channels=/etc/channels.scm
+  # hash guix
+
+  function guix_system_build_bootstrap() {
+    echo "Building Bootstrap"
+    # guix system build /etc/bootstrap-config.scm
+  }
+
+  function guix_system_configure_bootstrap() {
+    # these appear to be the necessary on Ubuntu 21.04
+    # mv /etc/ssl /etc/bk_ssl
+    # mv /etc/pam.d /etc/bk_pam.d
+    # mv /etc/skel /etc/bk_skel
+
+    # remove /etc/pam.d,ssl,udev,
+    rm -rf /etc/pam.d /etc/ssl /etc/udev
+    mv /etc /old-etc
+    mkdir /etc
+    cp -r /old-etc/{passwd,group,resolv.conf,services,shadow,gshadow,mtab,guix,bootstrap-config.scm} /etc/
+    cp /old-etc/guix/channels.scm /etc/guix/channels.scm
+
+    echo "Configuring for the first time"
+    guix system reconfigure /etc/bootstrap-config.scm
+    echo "Configuring for the second time"
+    guix system reconfigure /etc/bootstrap-config.scm
+
+    echo "Rebooting the system..."
+    reboot
+  }
+
+
+  main
+
+#+end_src
+* Building the Website :babel:hugo:webdev
+:PROPERTIES:
+:EXPORT_FILE_NAME: hugo-tailwind-hacking
+:EXPORT_DESCRIPTION: Hacking on a Hugo Theme
+:END:
+This is how we confiugre our project to use the Hugo static site builder.
+** Configuration: Hugo
+#+name: hugo-toml
+#+begin_src toml :tangle ../site/hugo.toml
+  baseURL = 'https://ise.cx'
+  languageCode = 'en-us'
+  title = 'isecx'
+  theme = "../../../ap-lit"
+  [params]
+    description = "World Wide Website of Ise ChannelX"
+
+  [markup.goldmark.renderer]
+    unsafe = true
+#+end_src
+** Configuration: Tailwind & node
+#+name: site-package-json
+#+begin_src json :tangle ../site/package.json
+{
+  "name": "ise-cx-website",
+  "version": "1.0.0",
+  "description": "Literate Blog for Isecx",
+  "main": "index.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "author": "",
+  "license": "ISC",
+  "devDependencies": {
+    "@tailwindcss/typography": "^0.5.12",
+    "tailwindcss": "^3.3.3"
+  }
+}
+#+end_src 
+#+name: site-tailwind-config-js
+#+begin_src javascript :tangle ../site/tailwind.config.js
+/** @type {import('tailwindcss').Config} */
+module.exports = {
+    /** This should be less broad :) */
+    content: ["./**/*.html"],
+    theme: {
+      extend: {
+        colors: {
+          brand: {
+            50: "#FFFBF5",
+            100: "#FFF4E5",
+            200: "#FFE7C7",
+            300: "#FFD9A8",
+            400: "#FFCA85",
+            500: "#FFB75A",
+            600: "#FF9C1A",
+            700: "#EB8500",
+            800: "#C26E00",
+            900: "#8A4E00",
+            950: "#663A00"
+          }
+        }       
+      },
+    },
+    plugins: [require('@tailwindcss/typography')],
+  }
+#+end_src
+*** Shell Scripting: Tailwind Development
+#+name: tw-watch-sh
+#+begin_src shell :exports none :tangle ../hack/tw-watch.sh :noweb yes :mkdirp yes :comments noweb :tangle-mode (identity #o755)  
+<<hackscript-prefix>>
+main() {
+  npx tailwindcss -i ./site/themes/ap-lit/assets/css/main.css -o ./site/themes/ap-lit/assets/css/tailwind-output.css --watch
+}
+main "$@"
+#+end_src
+
+* Scripts for Guix Channel Hacking :babel:guix:shell
+:PROPERTIES:
+:EXPORT_FILE_NAME: channel-hacking
+:EXPORT_DESCRIPTION: Useful shell scripts
+:END:
+Guix Channels are a powerful means for distributing software. Here, I have implemented some simple shell scripts that will enhance the development experience. These include
++ Building the channel without guix pull
++ Testing a package definition in a shell
++ Refreshing your home-env
+** Build Channel Locally
+#+begin_src shell :tangle ../hack/build-channel.sh :noweb yes :comments noweb :tangle-mode (identity #o755)
+  <<hackscript-prefix>>
+  main() {
+    tempfile=$(mktemp)
+    cat << EOF > "$tempfile"
+  (list
+    (channel
+      (name 'isecx)
+      (url "file://$(pwd)")
+      (branch "$(git rev-parse --abbrev-ref HEAD)")))
+  EOF
+
+    guix time-machine -C $tempfile --debug=3 --keep-failed -- shell hello
+  }
+  main "$@"
+#+end_src
+** Home Refresh
+** Guix TCP Repl
+Launches a guix rpel configured to listen on a TCP port. Can be 'jacked-in' through an IDE integration. In the case of emacs, this is ~geiser-connect~
+Notice that I 'used' the (gnu packages) module. This allows programs sent to the repl to be able to use the various modules we have defined in our guix channel dependencies.
+#+begin_src shell :tangle ../hack/guix-repl.sh :noweb yes :comments noweb :tangle-mode (identity #o755)
+<<hackscript-prefix>>
+main() {
+  tempfile=$(mktemp)
+  cat << EOF > "$tempfile"
+(use-modules (gnu packages))
+(display "Loaded GNU Packages Module \n")
+EOF
+  echo "Starting Development Guix Repl listening on port tcp:37146"
+  export INSIDE_EMACS=1
+  guix repl --load-path=./channel-src --listen=tcp:37146 --interactive $tempfile    
+}
+main "$@"
+#+end_src
+** Package Shell
+** Future Work
+*** TODO Implement Scripts
+* This Blog is a Guix Channel :babel:guix:scheme
+:PROPERTIES:
+:EXPORT_FILE_NAME: this-blog-is-a-guix-channel
+:EXPORT_DESCRIPTION: Combining the expressive power of an internet blog with the disribution mechanics of a guix channel.
+:END:
+GNU Guix is a state-of-the-art functional package manager. It enables users to develop and distribute software through powerful functional interfaces. A user of GNU Guix can specify a list of repository to subscribe to, and those repositories will be used to extend their Guix installation. A key takeway is that this website is impleneted as a git repository. Here, I will implement a set of programs enabling our git repository to serve as a GNU Guix Channel.
+** Guix Channel Metadata - The .guix-channel file
+We provide a scheme program that returns a data structure describing the metadata that guix expects a channel to have. This metadata is expected to be contained in the file ~.guix-channel~ at the repository root.
+#+name: guix-channel
+#+begin_src scheme :tangle ../.guix-channel
+;; -*- mode: scheme; -*-
+
+(channel
+  (version 0)
+  (directory "channel-src")
+  (url "https://gitlab.com/ise-company/isecx")
+  ;; Note that channel names here must be without quotes for the
+  ;; dependencies to match up.  see https://issues.guix.gnu.org/53657
+  (dependencies
+    (channel
+      (name guix)
+      (url "https://git.savannah.gnu.org/git/guix.git")
+      (commit "51de844a0ff6ea224367a384092896bce6848b9f")
+      (channel-introduction
+        (commit "9edb3f66fd807b096b48283debdcddccfea34bad")
+        (signer "BBB0 2DDF 2CEA F6A8 0D1D  E643 A2A0 6DF2 A33A 54FA")))))
+#+end_src
+** Guix Goodies 
+Guix allows us to describe how to reproduce our software through functional interfaces. I will be implementing a series of simple programs that will bring harmony to hacking on my website.
+*** Package Manifests
+Packages are essential to GNU Guix. They describe software that can deployed through Guix. A manifest is a list of these packages. Using the standard libraries provided by GNU Guix, I have implemented a manifest describing the development inputs of this website.
+#+name: manifest-scm
+#+begin_src scheme :tangle ../manifest.scm
+(specifications->manifest
+  (list 
+    "go-github-com-gohugoio-hugo-extended"
+    "entr"
+    "node"))
+#+end_src
+** Future Work
+*** TODO Implement Channel Authentication
+
+
+* Literate Programming: Tangle & Weave My Blog :babel:guix:shell:
+:PROPERTIES:
+:EXPORT_FILE_NAME: tangling-and-weaving
+:EXPORT_DESCRIPTION: Writing a post that is also a program
+:END:
+
+Let us begin with a description of what tangling and weaving means in the context of literate programming. We wish for our program to be representable for two distinct audiences: a **human** audience and a **compiler** audience. 
++ /Tangling/ produces literature for the **human** audience
++ /Weaving/ produces literature for the **compiler** audience
+
+** Writing an Emacs Batch Program
+
+To achieve this, we exploit org-babel-tangle and ox-hugo.
+#+name: emacs-lit-prefix
+#+begin_src emacs-lisp :exports none
+;; Quiets messages about shell indentation
+(advice-add 'sh-set-shell :around
+            (lambda (orig-fun &rest args)
+              (cl-letf (((symbol-function 'message) #'ignore))
+                (apply orig-fun args))))
+#+end_src
+#+name: emacs-lit-fns
+#+begin_src emacs-lisp
+;; Enable Org mode
+(use-package org)
+;; Extend org-export to support hugo flavored markdown
+(use-package ox-hugo
+    :after ox)
+(defun tangle (file-path)
+  "Open FILE-PATH in current buffer and tangle its contents, producing compiler literature"
+  (with-current-buffer (find-file file-path)
+    (org-mode)
+    ;; If you want to do any additional processing of the buffer contents,
+    ;; you can do it here before exporting.
+    (org-babel-tangle)))
+
+(defun weave (file-path)
+  "Open FILE-PATH in current buffer and weave its contents, producing human literature"
+  (setq 
+    org-hugo-base-dir (getenv "HUGO_BASE_DIR")
+    org-babel-tangle-mode 'read-only)
+
+  (with-current-buffer (find-file file-path)
+    (org-mode)
+    ;; If you want to do any additional processing of the buffer contents,
+    ;; you can do it here before exporting.
+    (org-hugo-export-wim-to-md :all-subtrees nil nil nil)))
+#+end_src
+
+#+name: emacs-lit-el
+#+begin_src emacs-lisp :exports none :tangle ../hack/config/emacs-lit.el :noweb yes :comments noweb  :mkdirp yes
+<<emacs-lit-prefix>>
+<<emacs-lit-fns>>
+#+end_src
+
+** Shell Script
+To easily run this process in the CLI, we provide shell scripts.
+#+name: tangle-main
+#+begin_src bash
+# Tangling from the CLI
+main() {
+    find ./org/ -name "$1.org" -exec emacs -batch -l ./hack/config/emacs-lit.el --eval '(tangle "{}")' \;
+}
+#+end_src
+#+name: weave-main
+#+begin_src bash
+# Weaving from the CLI
+main() {
+    export HUGO_BASE_DIR=$(pwd)/site
+    find ./org/ -name "$1.org" -exec emacs -batch -l ./hack/config/emacs-lit.el --eval '(weave "{}")' \;
+}
+#+end_src
+#+name: tangle-sh
+#+begin_src shell :exports none :tangle ../hack/tangle.sh :noweb yes :mkdirp yes :comments noweb :tangle-mode (identity #o755)  
+<<hackscript-prefix>>
+<<tangle-main>>
+main "$@"
+#+end_src
+#+name: weave-sh
+#+begin_src shell :exports none :tangle ../hack/weave.sh :noweb yes :mkdirp yes :comments noweb :tangle-mode (identity #o755)
+<<hackscript-prefix>>
+<<weave-main>>
+main "$@"
+#+end_src
+
+#+name: hackscript-prefix
+#+begin_src bash :exports none
+#!/usr/bin/env bash
+
+set -o errexit
+set -o nounset
+set -o pipefail
+
+# Set the $TRACE variable for debugging
+if [[ "${TRACE-0}" == "1" ]]; then
+    set -o xtrace
+fi
+
+cd "$(dirname "$0")"
+cd "../"
+#+end_src
+
+** Future Work
+*** Watch Directory and tangle/weave on change
+*** Include Tangled-Artifacts in our woven md

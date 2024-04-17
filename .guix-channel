@@ -1,0 +1,16 @@
+;; -*- mode: scheme; -*-
+
+(channel
+  (version 0)
+  (directory "channel-src")
+  (url "https://gitlab.com/ise-company/isecx")
+  ;; Note that channel names here must be without quotes for the
+  ;; dependencies to match up.  see https://issues.guix.gnu.org/53657
+  (dependencies
+    (channel
+      (name guix)
+      (url "https://git.savannah.gnu.org/git/guix.git")
+      (commit "51de844a0ff6ea224367a384092896bce6848b9f")
+      (channel-introduction
+        (commit "9edb3f66fd807b096b48283debdcddccfea34bad")
+        (signer "BBB0 2DDF 2CEA F6A8 0D1D  E643 A2A0 6DF2 A33A 54FA")))))
