@@ -12,4 +12,4 @@
 (define* (os ssh-pub guix-pub)
   (operating-system
     (inherit (machine-system-for-services %website-services))
-    (hostname "bla15e.com")))
+    (host-name "bla15e.com")))

@@ -67,7 +67,7 @@ We need to provide two public keys. I will be encoding their data as datastructu
   (define* (os ssh-pub guix-pub)
     (operating-system
       (inherit (machine-system-for-services %website-services))
-      (hostname "bla15e.com")))
+      (host-name "bla15e.com")))
 #+end_src
 ** Machine Configuration
 #+name: defn-module-machine
