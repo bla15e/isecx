@@ -241,7 +241,7 @@ If you can get a debian machine running on a VPS, then you can get a GNU Guix ma
   main
 
 #+end_src
-* Building the Website :babel:hugo:webdev
+* Building the Website :babel:hugo:webdev:
 :PROPERTIES:
 :EXPORT_FILE_NAME: hugo-tailwind-hacking
 :EXPORT_DESCRIPTION: Hacking on a Hugo Theme
@@ -317,7 +317,7 @@ main() {
 main "$@"
 #+end_src
 
-* Scripts for Guix Channel Hacking :babel:guix:shell
+* Scripts for Guix Channel Hacking :babel:guix:shell:
 :PROPERTIES:
 :EXPORT_FILE_NAME: channel-hacking
 :EXPORT_DESCRIPTION: Useful shell scripts
@@ -364,7 +364,7 @@ main "$@"
 ** Package Shell
 ** Future Work
 *** TODO Implement Scripts
-* This Blog is a Guix Channel :babel:guix:scheme
+* This Blog is a Guix Channel :babel:guix:scheme:
 :PROPERTIES:
 :EXPORT_FILE_NAME: this-blog-is-a-guix-channel
 :EXPORT_DESCRIPTION: Combining the expressive power of an internet blog with the disribution mechanics of a guix channel.
