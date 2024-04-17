@@ -1,5 +1,5 @@
 # [[file:../org/hack.org::tw-watch-sh][tw-watch-sh]]
-# [[file:hack.org::hackscript-prefix][hackscript-prefix]]
+# [[file:hack.org::tw-watch-sh][hackscript-prefix]]
 #!/usr/bin/env bash
 
 set -o errexit
@@ -11,6 +11,7 @@ if [[ "${TRACE-0}" == "1" ]]; then
     set -o xtrace
 fi
 
+original_working_dir=$(pwd)
 cd "$(dirname "$0")"
 cd "../"
 # hackscript-prefix ends here

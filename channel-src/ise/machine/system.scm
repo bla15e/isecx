@@ -2,55 +2,60 @@
 (define-module (ise machine system)
   #:use-module (gnu)
   #:use-module (gnu system)
-
+  #:use-module (gnu packages tls)
+  #:use-module (gnu packages certs)
   #:use-module (ise machine services)
-
   #:export (machine-system-for-services))
 
+(define %vm-initrd-modules
+  (cons* "virtio_scsi"
+         %base-initrd-modules))
+
 (define* (machine-system-for-services services ssh-key guix-key
-            #:key
-            (ops-user "opsadmin")
-            (locale "en_US.utf8")
-            (timezone "Etc/UTC")
-            (bootloader-target "/dev/sda")
-            (root-fs-device "/dev/sda1"))
-    (operating-system
-      (host-name "give-me-a-hostname")
-      (timezone timezone)
-      (locale locale)
+                                      #:key
+                                      (ops-user "opsadmin")
+                                      (locale "en_US.utf8")
+                                      (timezone "Etc/UTC")
+                                      (bootloader-target "/dev/sda")
+                                      (root-fs-device "/dev/sda1"))
+  (operating-system
+    (host-name "give-me-a-hostname")
+    (timezone timezone)
+    (locale locale)
 
-      (initrd-modules %vm-initrd-modules)
-      (bootloader
-       (bootloader-configuration
-        (bootloader grub-bootloader)
-        (targets (list bootloader-target))))
-      (file-systems
-       (cons* (file-system
-                (device root-fs-device)
-                (mount-point "/")
-                (type "ext4"))
-              %base-file-systems))
-      (users
-       (cons* (user-account
-               (name ops-user)
-               (comment ops-user)
-               (home-directory (string-append "/home/" ops-user))
-               (group "users")
-               (supplementary-groups '("wheel" "docker")))
-              %base-user-accounts))
-      ;; ops-user needs to be able to use 'sudo' without password for 'guix deploy'
-      (sudoers-file
-       (plain-file
-        "sudoers"
-        (string-append (plain-file-content %sudoers-specification)
-                       (format #f "~a ALL = NOPASSWD: ALL~%"
-                               ops-user))))
+    (initrd-modules %vm-initrd-modules)
+    (bootloader
+     (bootloader-configuration
+      (bootloader grub-bootloader)
+      (targets (list bootloader-target))))
+    (file-systems
+     (cons* (file-system
+              (device root-fs-device)
+              (mount-point "/")
+              (type "ext4"))
+            %base-file-systems))
+    (users
+     (cons* (user-account
+             (name ops-user)
+             (comment ops-user)
+             (home-directory (string-append "/home/" ops-user))
+             (group "users")
+             (supplementary-groups '("wheel" "docker")))
+            %base-user-accounts))
+    ;; ops-user needs to be able to use 'sudo' without password for 'guix deploy'
+    (sudoers-file
+     (plain-file
+      "sudoers"
+      (string-append (plain-file-content %sudoers-specification)
+                     (format #f "~a ALL = NOPASSWD: ALL~%"
+                             ops-user))))
 
-      ;; Globally-installed packages.
-      (packages (cons* nss-certs gnutls %base-packages))
+    ;; Globally-installed packages.
+    (packages (cons* nss-certs gnutls %base-packages))
 
-      (services
-       (append
-        services
-        (base-machine-services ssh-key guix-key)))))
+    (services
+     (append
+      services
+      (base-machine-services ssh-key guix-key
+                             #:ssh-deploy-user ops-user)))))
 ;; defn-module-ise-deployed ends here

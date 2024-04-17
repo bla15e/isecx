@@ -11,6 +11,7 @@ if [[ "${TRACE-0}" == "1" ]]; then
     set -o xtrace
 fi
 
+original_working_dir=$(pwd)
 cd "$(dirname "$0")"
 cd "../"
 # hackscript-prefix ends here

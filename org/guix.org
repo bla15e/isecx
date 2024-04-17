@@ -34,17 +34,19 @@ We need to provide two public keys. I will be encoding their data as datastructu
 #+name: defn-module-ise-credentials
 #+begin_src scheme
   (define-module (ise credentials)
-    #:use-module (guix gexp))
+    #:use-module (guix gexp)
+    #:export (guix-ed25519-public-key-file
+              ssh-public-key-file))
 
   (define* (guix-ed25519-public-key-file name q-param)
-    (plain-file (format #t  "~a-guix-ed25519-substitute.pub" name)
-                (format #t "(public-key
+    (plain-file (format #f  "~a-guix-ed25519-substitute.pub" name)
+                (format #f "(public-key
     (ecc
     (curve Ed25519)
     (q ~a)))" q-param)))
 
   (define* (ssh-public-key-file name pub-key)
-    (plain-file (format #t "~a-ssh-key.pub" name)
+    (plain-file (format #f "~a-ssh-key.pub" name)
                 pub-key))
 #+end_src
 #+name: ise-credentials-scm
@@ -58,16 +60,16 @@ We need to provide two public keys. I will be encoding their data as datastructu
     #:use-module (ise machine)
     #:use-module (ise machine system)
     #:use-module (ise machine services)
-    #:use-module (gnu machine ssh))
+    #:use-module (gnu machine ssh)
+    #:export (os))
 
   (define %website-services
     %base-docker-services)
 
-
   (define* (os ssh-pub guix-pub)
     (operating-system
-      (inherit (machine-system-for-services %website-services))
-      (host-name "bla15e.com")))
+      (inherit (machine-system-for-services %website-services ssh-pub guix-pub))
+      (host-name "isecx")))
 #+end_src
 ** Machine Configuration
 #+name: defn-module-machine
@@ -95,57 +97,62 @@ We need to provide two public keys. I will be encoding their data as datastructu
   (define-module (ise machine system)
     #:use-module (gnu)
     #:use-module (gnu system)
-
+    #:use-module (gnu packages tls)
+    #:use-module (gnu packages certs)
     #:use-module (ise machine services)
-
     #:export (machine-system-for-services))
 
+  (define %vm-initrd-modules
+    (cons* "virtio_scsi"
+           %base-initrd-modules))
+
   (define* (machine-system-for-services services ssh-key guix-key
-              #:key
-              (ops-user "opsadmin")
-              (locale "en_US.utf8")
-              (timezone "Etc/UTC")
-              (bootloader-target "/dev/sda")
-              (root-fs-device "/dev/sda1"))
-      (operating-system
-        (host-name "give-me-a-hostname")
-        (timezone timezone)
-        (locale locale)
+                                        #:key
+                                        (ops-user "opsadmin")
+                                        (locale "en_US.utf8")
+                                        (timezone "Etc/UTC")
+                                        (bootloader-target "/dev/sda")
+                                        (root-fs-device "/dev/sda1"))
+    (operating-system
+      (host-name "give-me-a-hostname")
+      (timezone timezone)
+      (locale locale)
 
-        (initrd-modules %vm-initrd-modules)
-        (bootloader
-         (bootloader-configuration
-          (bootloader grub-bootloader)
-          (targets (list bootloader-target))))
-        (file-systems
-         (cons* (file-system
-                  (device root-fs-device)
-                  (mount-point "/")
-                  (type "ext4"))
-                %base-file-systems))
-        (users
-         (cons* (user-account
-                 (name ops-user)
-                 (comment ops-user)
-                 (home-directory (string-append "/home/" ops-user))
-                 (group "users")
-                 (supplementary-groups '("wheel" "docker")))
-                %base-user-accounts))
-        ;; ops-user needs to be able to use 'sudo' without password for 'guix deploy'
-        (sudoers-file
-         (plain-file
-          "sudoers"
-          (string-append (plain-file-content %sudoers-specification)
-                         (format #f "~a ALL = NOPASSWD: ALL~%"
-                                 ops-user))))
+      (initrd-modules %vm-initrd-modules)
+      (bootloader
+       (bootloader-configuration
+        (bootloader grub-bootloader)
+        (targets (list bootloader-target))))
+      (file-systems
+       (cons* (file-system
+                (device root-fs-device)
+                (mount-point "/")
+                (type "ext4"))
+              %base-file-systems))
+      (users
+       (cons* (user-account
+               (name ops-user)
+               (comment ops-user)
+               (home-directory (string-append "/home/" ops-user))
+               (group "users")
+               (supplementary-groups '("wheel" "docker")))
+              %base-user-accounts))
+      ;; ops-user needs to be able to use 'sudo' without password for 'guix deploy'
+      (sudoers-file
+       (plain-file
+        "sudoers"
+        (string-append (plain-file-content %sudoers-specification)
+                       (format #f "~a ALL = NOPASSWD: ALL~%"
+                               ops-user))))
 
-        ;; Globally-installed packages.
-        (packages (cons* nss-certs gnutls %base-packages))
+      ;; Globally-installed packages.
+      (packages (cons* nss-certs gnutls %base-packages))
 
-        (services
-         (append
-          services
-          (base-machine-services ssh-key guix-key)))))
+      (services
+       (append
+        services
+        (base-machine-services ssh-key guix-key
+                               #:ssh-deploy-user ops-user)))))
 #+end_src
 ** System Services
 
@@ -153,57 +160,55 @@ We need to provide two public keys. I will be encoding their data as datastructu
 - configure ~openssh~ to recognize the manager's public-key
 #+name: defn-module-machine-system
 #+begin_src scheme :tangle ../channel-src/ise/machine/services.scm :mkdirp yes
-    (define-module (ise machine services)
-      #:use-module (gnu)
-      #:use-module (gnu system)
+  (define-module (ise machine services)
+    #:use-module (gnu)
+    #:use-module (gnu system)
 
-      #:use-module (gnu services)
-      #:use-module (gnu services base)
-      #:use-module (gnu services desktop)
-      #:use-module (gnu services dbus)
-      #:use-module (gnu services docker)
-      #:use-module (gnu services networking)
-      #:use-module (gnu services ssh)
-      #:export (base-machine-services
-                %base-docker-services))
+    #:use-module (gnu services)
+    #:use-module (gnu services base)
+    #:use-module (gnu services desktop)
+    #:use-module (gnu services dbus)
+    #:use-module (gnu services docker)
+    #:use-module (gnu services networking)
+    #:use-module (gnu services ssh)
 
-    (define %vm-initrd-modules
-      (cons* "virtio_scsi"
-             %base-initrd-modules))
+  #:use-module (gnu packages ssh)
+    #:export (base-machine-services
+              %base-docker-services))
 
-    (define* (ssh-configuration-for-keys ssh-authorized-keys)
-      (openssh-configuration
-       (openssh openssh-sans-x)
-       (permit-root-login 'prohibit-password)
-       (password-authentication? #f)
-       (authorized-keys ssh-authorized-keys)))
-    (define* (base-machine-services ssh-key-deploy guix-substitute-keys
-                                    #:key
-                                    (ssh-authorized-keys `())
-                                    (ssh-deploy-user "root")
-                                    (base-services %base-services))
-      (cons*
-       (service openssh-service-type
-                (ssh-configuration-for-keys
-                 (cons*
-                  `(,ssh-deploy-user ,ssh-key-deploy)
-                  `("root" ,ssh-key-deploy)
-                  ssh-authorized-keys)))
-       (modify-services base-services
-         (guix-service-type
-          config =>
-          (guix-configuration
-           (inherit config)
-           (authorized-keys
-            (append
-             guix-substitute-keys
-             (guix-configuration-authorized-keys config))))))))
+  (define* (ssh-configuration-for-keys ssh-authorized-keys)
+    (openssh-configuration
+     (openssh openssh-sans-x)
+     (permit-root-login 'prohibit-password)
+     (password-authentication? #f)
+     (authorized-keys ssh-authorized-keys)))
+  (define* (base-machine-services ssh-key-deploy guix-substitute-key
+                                  #:key
+                                  (ssh-authorized-keys `())
+                                  (ssh-deploy-user "root")
+                                  (base-services %base-services))
+    (cons*
+     (service openssh-service-type
+              (ssh-configuration-for-keys
+               (cons*
+                `(,ssh-deploy-user ,ssh-key-deploy)
+                `("root" ,ssh-key-deploy)
+                ssh-authorized-keys)))
+     (modify-services base-services
+       (guix-service-type
+        config =>
+        (guix-configuration
+         (inherit config)
+         (authorized-keys
+          (cons*
+           guix-substitute-key
+           (guix-configuration-authorized-keys config))))))))
 
-    (define %base-docker-services
-      (cons*
-       (service docker-service-type)
-       (service dbus-root-service-type)
-       (service elogind-service-type)
-       %base-services))
-  
+  (define %base-docker-services
+    (list
+     (service docker-service-type)
+     (service dhcp-client-service-type)
+     (service dbus-root-service-type)
+     (service elogind-service-type)))
+
 #+end_src

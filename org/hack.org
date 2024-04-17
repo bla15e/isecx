@@ -12,7 +12,23 @@ A collection of programs empowering the reader to hack on the website.
 If you can get a debian machine running on a VPS, then you can get a GNU Guix machine running on a VPS! Run this script as root and enjoy the winning!
 
 ** guix-infect.sh
-#+begin_src shell :tangle ../hack/guix-infect/debian-infect.sh
+I will implement a shells cript that takes in a hostname. It will infect that hostname according to any flags passed in.
+#+begin_src shell :tangle ../hack/guix-infect.sh :noweb yes :comments noweb :tangle-mode (identity #o755)
+  <<hackscript-prefix>>
+  main() {
+      echo "Infecting $1 to configure System $2"
+      ssh root@$1 "mkdir /etc/guix-infect"
+      scp ./hack/guix-infect/debian-11.sh root@$1:/etc/guix-infect/setup.sh
+      cd $original_working_dir
+      scp $2 root@$1:/etc/guix-infect/configuration.scm
+  }
+  main "$@"
+#+end_src
+
+
+#+end_src
+** guix-infect/debian-setup.sh
+#+begin_src shell :tangle ../hack/guix-infect/debian-11.sh :mkdirp yes
   #!/bin/bash
 
   set -o errexit
@@ -33,7 +49,7 @@ If you can get a debian machine running on a VPS, then you can get a GNU Guix ma
   ###### MODIFY END
   GUIX_DAEMON_SYSTEMD_SERVICE=/etc/systemd/system/guix-daemon.service
   BORDEAUX_SIGNING_KEY=~root/.config/guix/current/share/guix/bordeaux.guix.gnu.org.pub
-  CONFIG=/etc/bootstrap-config.scm
+  CONFIG=/etc/guix-infect/config.scm
   CHANNELS=/etc/guix/channels.scm
 
   function main() {
@@ -55,8 +71,7 @@ If you can get a debian machine running on a VPS, then you can get a GNU Guix ma
     echo "Installing openssl and certs"
     guix_install_openssl
 
-    echo "Writing System Scheme FIles"
-    write_server_config
+    echo "Writing Channels"
     write_system_channels
     echo "Pulling Guix"
     # TODO remove allow-downgrades flag
@@ -173,20 +188,6 @@ If you can get a debian machine running on a VPS, then you can get a GNU Guix ma
     guix package -i nss-certs gnutls
   }
 
-  function write_server_config() {
-    cat >> $CONFIG <<EOL
-  ;; ise-sx default configuration
-  ;; /etc/system.scm
-
-  (use-modules
-  (gnu system)
-  (ise system))
-  (operating-system
-    (inherit (ise-managed-system))
-    (host-name "change-me-by-deploying-a-system"))
-  EOL
-  }
-
   function write_ssh_pub_keys() {
     echo "writing SSH pubs keys you specified"
   }
@@ -198,9 +199,8 @@ If you can get a debian machine running on a VPS, then you can get a GNU Guix ma
   (cons*
         (channel
           (name 'isecx)
-          (url "https://gitlab.com/bla15e/gc")
-          (branch "main"))
-        %default-channels)
+          (url "https://github.com/bla15e/isecx")
+          (branch "main")))
   EOL
   }
 
@@ -327,7 +327,7 @@ Guix Channels are a powerful means for distributing software. Here, I have imple
 + Testing a package definition in a shell
 + Refreshing your home-env
 ** Build Channel Locally
-#+begin_src shell :tangle ../hack/build-channel.sh :noweb yes :comments noweb :tangle-mode (identity #o755)
+#+begin_src shell :tangle ../hack/guix.sh :noweb yes :comments noweb :tangle-mode (identity #o755)
   <<hackscript-prefix>>
   main() {
     tempfile=$(mktemp)
@@ -339,7 +339,7 @@ Guix Channels are a powerful means for distributing software. Here, I have imple
       (branch "$(git rev-parse --abbrev-ref HEAD)")))
   EOF
 
-    guix time-machine -C $tempfile --debug=3 --keep-failed -- shell hello
+    guix time-machine -C $tempfile --debug=3 --keep-failed -- "$@"
   }
   main "$@"
 #+end_src
@@ -494,19 +494,20 @@ main "$@"
 
 #+name: hackscript-prefix
 #+begin_src bash :exports none
-#!/usr/bin/env bash
+    #!/usr/bin/env bash
 
-set -o errexit
-set -o nounset
-set -o pipefail
+    set -o errexit
+    set -o nounset
+    set -o pipefail
 
-# Set the $TRACE variable for debugging
-if [[ "${TRACE-0}" == "1" ]]; then
-    set -o xtrace
-fi
+    # Set the $TRACE variable for debugging
+    if [[ "${TRACE-0}" == "1" ]]; then
+        set -o xtrace
+    fi
 
-cd "$(dirname "$0")"
-cd "../"
+    original_working_dir=$(pwd)
+    cd "$(dirname "$0")"
+    cd "../"
 #+end_src
 
 ** Future Work

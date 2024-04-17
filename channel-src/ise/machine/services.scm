@@ -9,12 +9,10 @@
   #:use-module (gnu services docker)
   #:use-module (gnu services networking)
   #:use-module (gnu services ssh)
+
+#:use-module (gnu packages ssh)
   #:export (base-machine-services
             %base-docker-services))
-
-(define %vm-initrd-modules
-  (cons* "virtio_scsi"
-         %base-initrd-modules))
 
 (define* (ssh-configuration-for-keys ssh-authorized-keys)
   (openssh-configuration
@@ -22,7 +20,7 @@
    (permit-root-login 'prohibit-password)
    (password-authentication? #f)
    (authorized-keys ssh-authorized-keys)))
-(define* (base-machine-services ssh-key-deploy guix-substitute-keys
+(define* (base-machine-services ssh-key-deploy guix-substitute-key
                                 #:key
                                 (ssh-authorized-keys `())
                                 (ssh-deploy-user "root")
@@ -40,13 +38,13 @@
       (guix-configuration
        (inherit config)
        (authorized-keys
-        (append
-         guix-substitute-keys
+        (cons*
+         guix-substitute-key
          (guix-configuration-authorized-keys config))))))))
 
 (define %base-docker-services
-  (cons*
+  (list
    (service docker-service-type)
+   (service dhcp-client-service-type)
    (service dbus-root-service-type)
-   (service elogind-service-type)
-   %base-services))
+   (service elogind-service-type)))
