@@ -9,7 +9,8 @@
   #:use-module (gnu services docker)
   #:use-module (gnu services networking)
   #:use-module (gnu services ssh)
-  #:export (base-machine-services))
+  #:export (base-machine-services
+            %base-docker-services))
 
 (define %vm-initrd-modules
   (cons* "virtio_scsi"
