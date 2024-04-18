@@ -18,7 +18,7 @@ LOCALE="en_US.utf8"
 ###### MODIFY END
 GUIX_DAEMON_SYSTEMD_SERVICE=/etc/systemd/system/guix-daemon.service
 BORDEAUX_SIGNING_KEY=~root/.config/guix/current/share/guix/bordeaux.guix.gnu.org.pub
-CONFIG=/etc/bootstrap-config.scm
+CONFIG=/etc/guix-infect/configuration.scm
 CHANNELS=/etc/guix/channels.scm
 
 function main() {
@@ -35,18 +35,13 @@ function main() {
 
   echo "Setting up Guix binaries"
   write_substitute_server_signing_key
+  echo "Writing Channels"
+  write_system_channels
+  echo "Pulling Latest Guix Revision & Channels"
   guix_authorize_and_pull_noauth
   guix_setup_locale
   echo "Installing openssl and certs"
   guix_install_openssl
-
-  echo "Writing System Scheme FIles"
-  write_server_config
-  write_system_channels
-  echo "Pulling Guix"
-  # TODO remove allow-downgrades flag
-  guix pull --allow-downgrades
-
   echo "Building Guix"
   guix_system_build_bootstrap
   echo "Configuring Guix"
@@ -84,11 +79,8 @@ function install_root_user_guix_config() {
 }
 
 function install_and_start_systemd_daemon() {
-  # TODO Replace!!
   cp ~root/.config/guix/current/lib/systemd/system/guix-daemon.service /etc/systemd/system/
-  #write_systemd_daemon
-
-  # install and start guix systemd daemon
+  # start guix systemd daemon
   echo "starting guix-daemon"
   systemctl start guix-daemon && systemctl enable guix-daemon
 }
@@ -144,7 +136,7 @@ function guix_authorize_and_pull_noauth() {
   guix archive --authorize < ~root/.config/guix/current/share/guix/bordeaux.guix.gnu.org.pub
   guix archive --authorize < ~root/.config/guix/current/share/guix/ci.guix.gnu.org.pub
   # Why did they comment out the guix pull? it's pretty friggen important if you ask me
-  guix pull
+  guix pull -k --verbosity=3
 
   hash guix
 }
@@ -158,29 +150,16 @@ function guix_install_openssl() {
   guix package -i nss-certs gnutls
 }
 
-function write_server_config() {
-  cat >> $CONFIG <<EOL
-;; ise-sx default configuration
-;; /etc/system.scm
-
-(use-modules
-(gnu system)
-(ise system))
-(operating-system
-  (inherit (ise-managed-system))
-  (host-name "change-me-by-deploying-a-system"))
-EOL
-}
-
 function write_ssh_pub_keys() {
   echo "writing SSH pubs keys you specified"
 }
 
 function write_system_channels() {
   # TODO Replace with file template
+  mkdir -p "$(dirname $CHANNELS)"
   cat >> $CHANNELS <<EOL
 ;; ISE Default Channel
-(cons*
+(list
       (channel
         (name 'isecx)
         (url "https://github.com/bla15e/isecx")
@@ -188,37 +167,22 @@ function write_system_channels() {
 EOL
 }
 
-# This is necessary for setting up deploy, but we aint here yet
-#write_signing_key
-# guix archive --authorize < /etc/packages.pantherx.org.pub
-# guix pull --disable-authentication --channels=/etc/channels.scm
-# hash guix
-
 function guix_system_build_bootstrap() {
   echo "Building Bootstrap"
   # guix system build /etc/bootstrap-config.scm
 }
 
 function guix_system_configure_bootstrap() {
-  # these appear to be the necessary on Ubuntu 21.04
-  # mv /etc/ssl /etc/bk_ssl
-  # mv /etc/pam.d /etc/bk_pam.d
-  # mv /etc/skel /etc/bk_skel
+    rm -rf /etc/pam.d /etc/ssl /etc/udev
+    mv /etc /old-etc
+    mkdir /etc
+    cp -r /old-etc/{passwd,group,resolv.conf,services,shadow,gshadow,mtab,guix,guix-infect} /etc/
 
-  # remove /etc/pam.d,ssl,udev,
-  rm -rf /etc/pam.d /etc/ssl /etc/udev
-  mv /etc /old-etc
-  mkdir /etc
-  cp -r /old-etc/{passwd,group,resolv.conf,services,shadow,gshadow,mtab,guix,bootstrap-config.scm} /etc/
-  cp /old-etc/guix/channels.scm /etc/guix/channels.scm
+    echo "Configuring System"
+    guix system reconfigure $CONFIG
 
-  echo "Configuring for the first time"
-  guix system reconfigure /etc/bootstrap-config.scm
-  echo "Configuring for the second time"
-  guix system reconfigure /etc/bootstrap-config.scm
-
-  echo "Rebooting the system..."
-  reboot
+    echo "Rebooting the system..."
+    reboot
 }
 
 

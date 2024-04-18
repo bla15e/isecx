@@ -17,10 +17,11 @@ I will implement a shells cript that takes in a hostname. It will infect that ho
   <<hackscript-prefix>>
   main() {
       echo "Infecting $1 to configure System $2"
-      ssh root@$1 "mkdir /etc/guix-infect"
+      ssh root@$1 "mkdir -p /etc/guix-infect"
       scp ./hack/guix-infect/debian-11.sh root@$1:/etc/guix-infect/setup.sh
       cd $original_working_dir
       scp $2 root@$1:/etc/guix-infect/configuration.scm
+      ssh root@$1 "chmod +x /etc/guix-infect/setup.sh"
   }
   main "$@"
 #+end_src
@@ -49,7 +50,7 @@ I will implement a shells cript that takes in a hostname. It will infect that ho
   ###### MODIFY END
   GUIX_DAEMON_SYSTEMD_SERVICE=/etc/systemd/system/guix-daemon.service
   BORDEAUX_SIGNING_KEY=~root/.config/guix/current/share/guix/bordeaux.guix.gnu.org.pub
-  CONFIG=/etc/guix-infect/config.scm
+  CONFIG=/etc/guix-infect/configuration.scm
   CHANNELS=/etc/guix/channels.scm
 
   function main() {
@@ -66,17 +67,13 @@ I will implement a shells cript that takes in a hostname. It will infect that ho
 
     echo "Setting up Guix binaries"
     write_substitute_server_signing_key
+    echo "Writing Channels"
+    write_system_channels
+    echo "Pulling Latest Guix Revision & Channels"
     guix_authorize_and_pull_noauth
     guix_setup_locale
     echo "Installing openssl and certs"
     guix_install_openssl
-
-    echo "Writing Channels"
-    write_system_channels
-    echo "Pulling Guix"
-    # TODO remove allow-downgrades flag
-    guix pull --allow-downgrades
-
     echo "Building Guix"
     guix_system_build_bootstrap
     echo "Configuring Guix"
@@ -114,11 +111,8 @@ I will implement a shells cript that takes in a hostname. It will infect that ho
   }
 
   function install_and_start_systemd_daemon() {
-    # TODO Replace!!
     cp ~root/.config/guix/current/lib/systemd/system/guix-daemon.service /etc/systemd/system/
-    #write_systemd_daemon
-
-    # install and start guix systemd daemon
+    # start guix systemd daemon
     echo "starting guix-daemon"
     systemctl start guix-daemon && systemctl enable guix-daemon
   }
@@ -174,7 +168,7 @@ I will implement a shells cript that takes in a hostname. It will infect that ho
     guix archive --authorize < ~root/.config/guix/current/share/guix/bordeaux.guix.gnu.org.pub
     guix archive --authorize < ~root/.config/guix/current/share/guix/ci.guix.gnu.org.pub
     # Why did they comment out the guix pull? it's pretty friggen important if you ask me
-    guix pull
+    guix pull -k --verbosity=3
 
     hash guix
   }
@@ -194,9 +188,10 @@ I will implement a shells cript that takes in a hostname. It will infect that ho
 
   function write_system_channels() {
     # TODO Replace with file template
+    mkdir -p "$(dirname $CHANNELS)"
     cat >> $CHANNELS <<EOL
   ;; ISE Default Channel
-  (cons*
+  (list
         (channel
           (name 'isecx)
           (url "https://github.com/bla15e/isecx")
@@ -204,37 +199,22 @@ I will implement a shells cript that takes in a hostname. It will infect that ho
   EOL
   }
 
-  # This is necessary for setting up deploy, but we aint here yet
-  #write_signing_key
-  # guix archive --authorize < /etc/packages.pantherx.org.pub
-  # guix pull --disable-authentication --channels=/etc/channels.scm
-  # hash guix
-
   function guix_system_build_bootstrap() {
     echo "Building Bootstrap"
     # guix system build /etc/bootstrap-config.scm
   }
 
   function guix_system_configure_bootstrap() {
-    # these appear to be the necessary on Ubuntu 21.04
-    # mv /etc/ssl /etc/bk_ssl
-    # mv /etc/pam.d /etc/bk_pam.d
-    # mv /etc/skel /etc/bk_skel
+      rm -rf /etc/pam.d /etc/ssl /etc/udev
+      mv /etc /old-etc
+      mkdir /etc
+      cp -r /old-etc/{passwd,group,resolv.conf,services,shadow,gshadow,mtab,guix,guix-infect} /etc/
 
-    # remove /etc/pam.d,ssl,udev,
-    rm -rf /etc/pam.d /etc/ssl /etc/udev
-    mv /etc /old-etc
-    mkdir /etc
-    cp -r /old-etc/{passwd,group,resolv.conf,services,shadow,gshadow,mtab,guix,bootstrap-config.scm} /etc/
-    cp /old-etc/guix/channels.scm /etc/guix/channels.scm
+      echo "Configuring System"
+      guix system reconfigure $CONFIG
 
-    echo "Configuring for the first time"
-    guix system reconfigure /etc/bootstrap-config.scm
-    echo "Configuring for the second time"
-    guix system reconfigure /etc/bootstrap-config.scm
-
-    echo "Rebooting the system..."
-    reboot
+      echo "Rebooting the system..."
+      reboot
   }
 
 

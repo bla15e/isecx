@@ -29,7 +29,6 @@
    (service openssh-service-type
             (ssh-configuration-for-keys
              (cons*
-              `(,ssh-deploy-user ,ssh-key-deploy)
               `("root" ,ssh-key-deploy)
               ssh-authorized-keys)))
    (modify-services base-services

@@ -17,10 +17,11 @@ cd "../"
 # hackscript-prefix ends here
 main() {
     echo "Infecting $1 to configure System $2"
-    ssh root@$1 "mkdir /etc/guix-infect"
+    ssh root@$1 "mkdir -p /etc/guix-infect"
     scp ./hack/guix-infect/debian-11.sh root@$1:/etc/guix-infect/setup.sh
     cd $original_working_dir
     scp $2 root@$1:/etc/guix-infect/configuration.scm
+    ssh root@$1 "chmod +x /etc/guix-infect/setup.sh"
 }
 main "$@"
 # guix-infect.sh:1 ends here
