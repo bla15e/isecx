@@ -1,0 +1,24 @@
+{{ define "main" }}
+<div class="prose dark:prose-invert max-w-none">
+  {{ $posts := where .Site.RegularPages "Type" "posts" }}
+  <div class="">
+    {{ .Content }}
+  </div>
+  <section class="grid grid-cols-1 lg:grid-cols-2 gap-x-4">
+    {{ partial "post-list.html" (dict "Posts" $posts "Title" "Newest" "Limit" 7) }}
+    {{ partial "post-list.html" (dict "Posts" $posts "Title" "Favorites" "Limit" 7) }}
+  </section>
+  <div class="max-h-20 max-w-20">
+    {{ partial "vectors/ise-icon-reverse.html" . }}
+  </div>
+  <hr/>
+  <section class="grid grid-cols-1 lg:grid-cols-2 gap-x-4">
+    {{ partial "post-list.html" (dict "Posts" $posts "Title" "Scribbles" "Limit" 3) }}
+    {{ partial "post-list.html" (dict "Posts" $posts "Title" "Literate Programs" "Limit" 7) }}
+    {{ partial "post-list.html" (dict "Posts" $posts "Title" "Hacking" "Limit" 7) }}
+    {{ partial "post-list.html" (dict "Posts" $posts "Title" "Travel" "Limit" 7) }}
+    {{ partial "post-list.html" (dict "Posts" $posts "Title" "Guix" "Limit" 7) }}
+    {{ partial "post-list.html" (dict "Posts" $posts "Title" "Time for My Stories" "Limit" 7) }}
+  </section>
+</div>
+{{ end }}

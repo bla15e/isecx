@@ -173,16 +173,19 @@ function guix_system_build_bootstrap() {
 }
 
 function guix_system_configure_bootstrap() {
-    rm -rf /etc/pam.d /etc/ssl /etc/udev
-    mv /etc /old-etc
-    mkdir /etc
-    cp -r /old-etc/{passwd,group,resolv.conf,services,shadow,gshadow,mtab,guix,guix-infect} /etc/
+  #  mv /etc/ssl /etc/bk_ssl
+   # mv /etc/pam.d /etc/bk_pam.d
+    #mv /etc/skel /etc/bk_skel
 
-    echo "Configuring System"
-    guix system reconfigure $CONFIG
+   # mv /etc /old-etc
+   # mkdir /etc
+   # cp -r /old-etc/{passwd,group,resolv.conf,services,shadow,gshadow,mtab,guix,guix-infect} /etc/
+
+    #echo "Configuring System"
+    #guix system reconfigure $CONFIG
 
     echo "Rebooting the system..."
-    reboot
+    #reboot
 }
 
 
