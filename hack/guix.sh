@@ -25,7 +25,7 @@ main() {
     (branch "$(git rev-parse --abbrev-ref HEAD)")))
 EOF
 
-  guix time-machine -C $tempfile --debug=3 --keep-failed -- "$@"
+  guix time-machine -C $tempfile --debug=5 --keep-failed -- "$@"
 }
 main "$@"
 # Build Channel Locally:1 ends here

@@ -2,7 +2,7 @@
 
 (channel
   (version 0)
-  (directory "channel-src")
+  (directory "src")
   (url "https://gitlab.com/ise-company/isecx")
   ;; Note that channel names here must be without quotes for the
   ;; dependencies to match up.  see https://issues.guix.gnu.org/53657
