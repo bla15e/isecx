@@ -16,9 +16,8 @@ TIMEZONE="Etc/UTC"
 LOCALE="en_US.utf8"
 
 ###### MODIFY END
-GUIX_DAEMON_SYSTEMD_SERVICE=/etc/systemd/system/guix-daemon.service
 BORDEAUX_SIGNING_KEY=~root/.config/guix/current/share/guix/bordeaux.guix.gnu.org.pub
-CONFIG=/etc/guix-infect/configuration.scm
+CONFIG=/root/guix-infect/configuration.scm
 CHANNELS=/etc/guix/channels.scm
 
 function main() {
@@ -85,32 +84,6 @@ function install_and_start_systemd_daemon() {
   systemctl start guix-daemon && systemctl enable guix-daemon
 }
 
-function write_systemd_daemon() {
-  cat >> $GUIX_DAEMON_SYSTEMD_SERVICE <<EOL
-# This is a "service unit file" for the systemd init system to launch
-# 'guix-daemon'.  Drop it in /etc/systemd/system or similar to have
-# 'guix-daemon' automatically started.
-
-[Unit]
-Description=Build daemon for GNU Guix
-
-[Service]
-ExecStart=/var/guix/profiles/per-user/root/current-guix/bin/guix-daemon --build-users-group=guixbuild
-Environment='GUIX_LOCPATH=/var/guix/profiles/per-user/root/guix-profile/lib/locale' LC_ALL=en_US.utf8/
-RemainAfterExit=yes
-StandardOutput=syslog
-StandardError=syslog
-
-# See <https://lists.gnu.org/archive/html/guix-devel/2016-04/msg00608.html>.
-# Some package builds (for example, go@1.8.1) may require even more than
-# 1024 tasks.
-TasksMax=8192
-
-[Install]
-WantedBy=multi-user.target
-EOL
-}
-
 function install_guix_info_files() {
   mkdir -p /usr/local/share/info
   cd /usr/local/share/info
@@ -169,23 +142,19 @@ EOL
 
 function guix_system_build_bootstrap() {
   echo "Building Bootstrap"
-  # guix system build /etc/bootstrap-config.scm
+  guix system build $CONFIG
 }
 
 function guix_system_configure_bootstrap() {
-  #  mv /etc/ssl /etc/bk_ssl
-   # mv /etc/pam.d /etc/bk_pam.d
-    #mv /etc/skel /etc/bk_skel
-
-   # mv /etc /old-etc
-   # mkdir /etc
-   # cp -r /old-etc/{passwd,group,resolv.conf,services,shadow,gshadow,mtab,guix,guix-infect} /etc/
-
-    #echo "Configuring System"
-    #guix system reconfigure $CONFIG
+    rm -rf /etc/pam.d /etc/ssl /etc/udev
+    mv /etc /old-etc
+    mkdir /etc
+    cp -r /old-etc/{passwd,group,resolv.conf,services,shadow,gshadow,mtab,guix} /etc/
+    echo "Configuring System"
+    guix system reconfigure $CONFIG
 
     echo "Rebooting the system..."
-    #reboot
+    reboot
 }
 
 

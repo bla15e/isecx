@@ -30,6 +30,7 @@
             (ssh-configuration-for-keys
              (cons*
               `("root" ,ssh-key-deploy)
+              `(,ssh-deploy-user ,ssh-key-deploy)
               ssh-authorized-keys)))
    (modify-services base-services
      (guix-service-type
