@@ -150,8 +150,8 @@ function guix_system_configure_bootstrap() {
     mv /etc /old-etc
     mkdir /etc
     cp -r /old-etc/{passwd,group,resolv.conf,services,shadow,gshadow,mtab,guix} /etc/
-    echo "Configuring System"
-    guix system reconfigure $CONFIG
+    echo "Initializing System"
+    guix system init $CONFIG /
 
     echo "Rebooting the system..."
     reboot

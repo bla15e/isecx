@@ -18,10 +18,10 @@ cd "../"
 main() {
     echo "Infecting $1 to configure System $2"
     ssh root@$1 "mkdir -p /root/guix-infect"
-    scp ./hack/guix-infect/debian-11.sh root@$1:/root/guix-infect/setup.sh
+    scp -o "UserKnownHostsFile=/dev/null" -o "StrictHostKeyChecking=no" ./hack/guix-infect/debian-11.sh root@$1:/root/guix-infect/setup.sh
     cd $original_working_dir
-    scp $2 root@$1:/root/guix-infect/configuration.scm
-    ssh root@$1 "chmod +x /root/guix-infect/setup.sh"
+    scp -o "UserKnownHostsFile=/dev/null" -o "StrictHostKeyChecking=no" $2 root@$1:/root/guix-infect/configuration.scm
+    ssh -o "UserKnownHostsFile=/dev/null" -o "StrictHostKeyChecking=no" root@$1 "chmod +x /root/guix-infect/setup.sh && /root/guix-infect/setup.sh"
 }
 main "$@"
 # guix-infect.sh:1 ends here

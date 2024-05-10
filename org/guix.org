@@ -3,6 +3,583 @@
 #+property: header-args :eval never-export
 
 A collection of GNU Guix programs.
+* The Nonguix Binary Build System
+I would like to build provide software binaries as GNU Guix packages. Although this is contrary to the guix project's goals of full source bootstrapibilty and reproducible builds - it will allow easy packaging and incorporation of popular software tools.
+
+#+begin_src scheme :tangle ../channel-src/ise/packages/python-xyz.scm :mkdirp yes
+(define-module (ise packages python-xyz)
+  #:use-module ((guix licenses) #:prefix license:)
+  #:use-module (gnu packages)
+  #:use-module (gnu packages check)
+  #:use-module (gnu packages python-build)
+  #:use-module (gnu packages python-check)
+  #:use-module (gnu packages python-compression)
+  #:use-module (gnu packages python-crypto)
+  #:use-module (gnu packages python-science)
+  #:use-module (gnu packages python-web)
+  #:use-module (gnu packages python-xyz)
+  #:use-module (guix packages)
+  #:use-module (guix build-system gnu)
+  #:use-module (guix build-system pyproject)
+  #:use-module (guix build-system python)
+  #:use-module (guix download)
+  #:use-module (guix hg-download)
+  #:use-module (guix git-download)
+  #:use-module (guix gexp)
+  #:use-module (guix utils)
+  #:use-module (srfi srfi-1)
+  #:use-module (srfi srfi-26))
+
+(define-public python-jinja2-cli-latest
+  (package
+    (name "python-jinja2-cli")
+    (version "0.8.2")
+    (source
+      (origin
+        (method url-fetch)
+        (uri (pypi-uri "jinja2-cli" version))
+        (sha256
+          (base32
+	   "0l4fw5wn3kxq5gvpi4wj76hvbxfyij9rb32ndwh8w4hi852v2sx1"))))
+    (build-system python-build-system)
+    (propagated-inputs
+      (list python-jinja2))
+    (native-inputs
+      (list python-flake8 python-jinja2 python-pytest))
+    (home-page "https://github.com/mattrobenolt/jinja2-cli")
+    (synopsis "Command-line interface to Jinja2")
+    (description
+     "This package provides a command-line interface (CLI) to the Jinja2
+template engine.")
+    (license license:bsd-3)))
+
+python-jinja2-cli-latest
+
+#+end_src
+
+# TODO Tangle!!!!
+#+begin_src scheme
+(define-public go-github-com-gohugoio-hugo
+  (package 
+   (name "go-github-com-gohugoio-hugo")
+   (version "0.120.4")
+   (source (origin
+            (method url-fetch)
+            (uri (string-append "https://github.com/gohugoio/hugo/releases/download/v"
+                                version "/hugo_" version "_Linux-64bit.tar.gz"))
+            (sha256
+             (base32 "00vasi09dswyi8cv5axlw8scll3miamy0m1lsb935465ldgp77c4"))))
+   (build-system binary-build-system)
+   (arguments '(#:install-plan
+                '(("hugo" "bin/"))))
+   (home-page "https://github.com/gohugoio/hugo")
+   (synopsis "Hugo")
+   (description
+    "This package provides a Fast and Flexible Static Site Generator built with love
+by @url{https://github.com/bep,bep}, @url{http://spf13.com/,spf13} and
+@url{https://github.com/gohugoio/hugo/graphs/contributors,friends} in
+@url{https://golang.org/,Go}.")
+   (license license:asl2.0)))
+
+(define-public go-github-com-gohugoio-hugo-extended
+  (package
+   (name "go-github-com-gohugoio-hugo-extended")
+   (version "0.120.4")
+   (source (origin
+            (method url-fetch)
+            (uri (string-append "https://github.com/gohugoio/hugo/releases/download/v"
+                                version "/hugo_extended_" version "_Linux-64bit.tar.gz"))
+            (sha256
+             (base32
+              "11dqilvryn73v4j3g9ljfnr5awjpdxk7z3zqckq6rp2hy0cl14jg"))))
+   (build-system binary-build-system)
+   (arguments '(#:install-plan
+                '(("hugo" "bin/"))
+                #:patchelf-plan
+                `(("hugo" ("gcc")))
+                #:strip-binaries? #f))
+   (inputs
+    `((,gcc "lib")))
+   (home-page "https://github.com/gohugoio/hugo")
+   (synopsis "Hugo")
+   (description
+    "This package provides a Fast and Flexible Static Site Generator built with love
+by @url{https://github.com/bep,bep}, @url{http://spf13.com/,spf13} and
+@url{https://github.com/gohugoio/hugo/graphs/contributors,friends} in
+@url{https://golang.org/,Go}.")
+   (license license:asl2.0)))
+
+(define-public lazydocker
+  (package
+    (name "lazydocker")
+    (version "0.23.1")
+    (source (origin
+             (method url-fetch)
+             (uri (string-append "https://github.com/jesseduffield/lazydocker/releases/download/v"
+                                 version "/lazydocker_" version "_Linux_x86_64.tar.gz" ))
+             (sha256
+              (base32 "0flxmam71k8yc7pw6nxygc9ml5x8cvc6bpylplbs9rxm1qsz2ncp"))))
+    (build-system binary-build-system)
+    (supported-systems '("x86_64-linux"))
+    (arguments
+     `(#:install-plan '(("lazydocker" "bin/"))))
+    (synopsis "A simple terminal UI for both docker and docker-compose")
+    (description "Docker TUI")
+    (home-page "https://github.com/jesseduffield/lazydocker")
+    (license license:epl1.0)))
+#+end_src
+#+begin_src scheme :tangle ../channel-src/isecx/build/binary-build-system.scm
+  ;;; SPDX-License-Identifier: GPL-3.0-or-later
+  ;;; Copyright © 2019 Julien Lepiller <julien@lepiller.eu>
+  ;;; Copyright © 2022 Attila Lendvai <attila@lendvai.name>
+  ;;; Copyright © 2023 Giacomo Leidi <goodoldpaul@autistici.org>
+
+  (define-module (isecx build binary-build-system)
+    #:use-module ((guix build gnu-build-system) #:prefix gnu:)
+    #:use-module (isecx build utils)
+    #:use-module (guix build utils)
+    #:use-module (ice-9 match)
+    #:export (%standard-phases
+              binary-build))
+
+  ;; Commentary:
+  ;;
+  ;; Builder-side code of the standard binary build procedure.
+  ;;
+  ;; Code:
+
+  (define (new-install)
+    "Return the copy-build-system `install' procedure."
+    (@@ (guix build copy-build-system) install))
+
+  (define* (old-install #:key install-plan outputs #:allow-other-keys)
+    "Copy files from the \"source\" build input to the \"out\" output according to INSTALL-PLAN.
+
+  An INSTALL-PLAN is made of three elements:
+
+  - A source path which is a file or directory from the \"source\" build input.
+  - Patterns of the files to copy (only useful if the source path is a directory).
+  - The target destination.
+
+  If the target ends with a slash, it represents the target directory.  If not, it
+  represent the target full path, which only makes sense for single files."
+    (define (install-file file target)
+      (let ((target (string-append (assoc-ref outputs "out")
+                                   "/" target
+                                   (if (string-suffix? "/" target)
+                                       (string-append "/" file)
+                                       ""))))
+        (mkdir-p (dirname target))
+        (copy-file file target)))
+
+    (define (install-file-pattern pattern target)
+      (for-each
+        (lambda (file)
+          (install-file file target))
+        (find-files "." pattern)))
+
+    (define (install plan)
+      (match plan
+        ((file-or-directory files target)
+         (if (file-is-directory? file-or-directory)
+             (with-directory-excursion file-or-directory
+               (for-each
+                (lambda (pattern)
+                  (install-file-pattern pattern target))
+                files))
+             (install-file file-or-directory target)))))
+
+    (for-each install install-plan)
+    #t)
+
+  (define* (install #:key install-plan outputs #:allow-other-keys)
+    (define (install-old-format)
+       (warn "Install-plan format deprecated.
+  Please update to the format of the copy-build-system.")
+       (old-install #:install-plan install-plan #:outputs outputs))
+    (match (car install-plan)
+      ((source (. matches) target)
+       (install-old-format))
+      ((source #f target)
+       (install-old-format))
+      (_ ((new-install) #:install-plan install-plan #:outputs outputs))))
+
+  (define* (patchelf #:key inputs outputs patchelf-plan #:allow-other-keys)
+    "Set the interpreter and the RPATH of files as per the PATCHELF-PLAN.
+
+  The PATCHELF-PLAN elements are lists of:
+
+  - The file to patch.
+  - The inputs (as strings) to include in the rpath, e.g. \"mesa\".
+
+  Both executables and dynamic libraries are accepted.
+  The inputs are optional when the file is an executable."
+    (define (binary-patch binary interpreter runpath)
+
+      (define* (maybe-make-rpath entries name #:optional (extra-path "/lib"))
+        (let ((entry (assoc-ref entries name)))
+          (if entry
+              (string-append entry extra-path)
+              #f)))
+
+      (define* (make-rpath name #:optional (extra-path "/lib"))
+        (or (maybe-make-rpath outputs name extra-path)
+            (maybe-make-rpath inputs  name extra-path)
+            (error (format #f "`~a' not found among the inputs nor the outputs."
+                           name))))
+
+      (unless (string-contains binary ".so")
+        ;; Use `system*' and not `invoke' since this may raise an error if
+        ;; library does not end with .so.
+        (system* "patchelf" "--set-interpreter" interpreter binary))
+      (when runpath
+        (let ((rpath (string-join
+                      (map
+                       (match-lambda
+                         ((name extra-path)
+                          (make-rpath name extra-path))
+                         (name
+                          (make-rpath name)))
+                       runpath)
+                      ":")))
+          (invoke "patchelf" "--set-rpath" rpath binary)))
+      #t)
+
+    (when (and patchelf-plan
+               (not (null? patchelf-plan)))
+      (let ((interpreter (car (find-files (assoc-ref inputs "libc") "ld-linux.*\\.so")))
+            (interpreter32 (car (find-files (assoc-ref inputs "libc32") "ld-linux.*\\.so"))))
+        (for-each
+         (lambda (plan)
+           (match plan
+             ((binary runpath)
+              (binary-patch binary (if (64-bit? binary)
+                                       interpreter
+                                       interpreter32)
+                            runpath))
+             ((binary)
+              (binary-patch binary (if (64-bit? binary)
+                                       interpreter
+                                       interpreter32)
+                            #f))))
+         patchelf-plan)))
+    #t)
+
+  (define (deb-file? binary-file)
+    (string-suffix? ".deb" binary-file))
+
+  (define (unpack-deb deb-file)
+    (invoke "ar" "x" deb-file)
+    (invoke "tar" "xvf" "data.tar.xz")
+    (invoke "rm" "-rfv" "control.tar.gz"
+            "data.tar.xz"
+            deb-file
+            "debian-binary"))
+
+  (define* (binary-unpack #:key source #:allow-other-keys)
+    (let* ((files (filter (lambda (f)
+                            (not (string=? (basename f) "environment-variables")))
+                          (find-files (getcwd))))
+           (binary-file (car files)))
+      (when (= 1 (length files))
+        (mkdir "binary")
+        (chdir "binary")
+        (match binary-file
+          ((? deb-file?) (unpack-deb binary-file))
+          (_
+           (begin
+             (format #t "Unknown file type: ~a~%" (basename binary-file))
+             ;; Cleanup after ourselves
+             (chdir "..")
+             (rmdir "binary")))))))
+
+  (define %standard-phases
+    ;; Everything is as with the GNU Build System except for the `binary-unpack',
+    ;; `configure', `build', `check' and `install' phases.
+    (modify-phases gnu:%standard-phases
+      (add-after 'unpack 'binary-unpack binary-unpack)
+      (delete 'bootstrap)
+      (delete 'configure)
+      (delete 'build)
+      (delete 'check)
+      (add-before 'install 'patchelf patchelf)
+      (replace 'install install)))
+
+  (define* (binary-build #:key inputs (phases %standard-phases)
+                         #:allow-other-keys #:rest args)
+    "Build the given package, applying all of PHASES in order."
+    (apply gnu:gnu-build #:inputs inputs #:phases phases args))
+
+  ;;; binary-build-system.scm ends here
+
+
+#+end_src
+#+begin_src scheme :tangle ../channel-src/isecx/build/utils.scm
+  ;;; SPDX-License-Identifier: GPL-3.0-or-later
+  ;;; Copyright © 2019 Pierre Neidhardt <mail@ambrevar.xyz>
+  ;;; Copyright © 2020 Alex Griffin <a@ajgrf.com>
+  ;;; Copyright © 2023 Giacomo Leidi <goodoldpaul@autistici.org>
+  ;;; Copyright © 2024 Blaise Marchetti 
+
+  (define-module (isecx build utils)
+    #:use-module (ice-9 match)
+    #:use-module (ice-9 binary-ports)
+    #:use-module (guix build utils)
+    #:use-module (srfi srfi-1)
+    #:use-module (srfi srfi-26)
+    #:export (64-bit?
+              make-wrapper
+              concatenate-files
+              build-paths-from-inputs))
+
+  (define (64-bit? file)
+    "Return true if ELF file is in 64-bit format, false otherwise.
+  See https://en.wikipedia.org/wiki/Executable_and_Linkable_Format#File_header."
+    (with-input-from-file file
+      (lambda ()
+        (= 2
+           (array-ref (get-bytevector-n (current-input-port) 5) 4)))
+      #:binary #t))
+
+  (define* (make-wrapper wrapper real-file #:key (skip-argument-0? #f) #:rest vars)
+    "Like `wrap-program' but create WRAPPER around REAL-FILE.
+  The wrapper automatically changes directory to that of REAL-FILE.
+
+  Example:
+
+    (make-wrapper \"bin/foo\" \"sub-dir/original-foo\"
+                  '(\"PATH\" \":\" = (\"/gnu/.../bar/bin\"))
+                  '(\"CERT_PATH\" suffix (\"/gnu/.../baz/certs\"
+                                          \"/qux/certs\")))
+
+  will create 'bin/foo' with the following
+  contents:
+
+    #!location/of/bin/bash
+    export PATH=\"/gnu/.../bar/bin\"
+    export CERT_PATH=\"$CERT_PATH${CERT_PATH:+:}/gnu/.../baz/certs:/qux/certs\"
+    cd sub-dir
+    exec -a $0 sub-dir/original-foo \"$@\"."
+    (define (export-variable lst)
+      ;; Return a string that exports an environment variable.
+      (match lst
+        ((var sep '= rest)
+         (format #f "export ~a=\"~a\""
+                 var (string-join rest sep)))
+        ((var sep 'prefix rest)
+         (format #f "export ~a=\"~a${~a:+~a}$~a\""
+                 var (string-join rest sep) var sep var))
+        ((var sep 'suffix rest)
+         (format #f "export ~a=\"$~a${~a+~a}~a\""
+                 var var var sep (string-join rest sep)))
+        ((var '= rest)
+         (format #f "export ~a=\"~a\""
+                 var (string-join rest ":")))
+        ((var 'prefix rest)
+         (format #f "export ~a=\"~a${~a:+:}$~a\""
+                 var (string-join rest ":") var var))
+        ((var 'suffix rest)
+         (format #f "export ~a=\"$~a${~a:+:}~a\""
+                 var var var (string-join rest ":")))))
+
+    (define (remove-keyword-arguments lst)
+      (match lst
+        (() '())
+        (((? keyword? _) _ lst ...)
+         (remove-keyword-arguments lst))
+        (_ lst)))
+
+    (mkdir-p (dirname wrapper))
+    (call-with-output-file wrapper
+      (lambda (port)
+        (format port
+                (if skip-argument-0?
+                    "#!~a~%~a~%cd \"~a\"~%exec \"~a\" \"$@\"~%"
+                    "#!~a~%~a~%cd \"~a\"~%exec -a \"$0\" \"~a\" \"$@\"~%")
+                (which "bash")
+                (string-join
+                  (map export-variable (remove-keyword-arguments vars))
+                  "\n")
+                (dirname real-file)
+                (canonicalize-path real-file))))
+    (chmod wrapper #o755))
+
+  (define (concatenate-files files result)
+    "Make RESULT the concatenation of all of FILES."
+    (define (dump file port)
+      (put-bytevector
+       port
+       (call-with-input-file file
+         get-bytevector-all)))
+
+    (call-with-output-file result
+      (lambda (port)
+        (for-each (cut dump <> port) files))))
+
+#+end_src
+#+begin_src scheme  :tangle ../channel-src/isecx/build-system/binary.scm
+  ;;; SPDX-License-Identifier: GPL-3.0-or-later
+  ;;; Copyright © 2024 Blaise Marchetti <bl@ise.ninja>
+
+  (define-module (isecx build-system binary)
+    #:use-module (guix store)
+    #:use-module (guix utils)
+    #:use-module (guix gexp)
+    #:use-module (guix monads)
+    #:use-module (guix derivations)
+    #:use-module (guix search-paths)
+    #:use-module (guix build-system)
+    #:use-module (guix build-system gnu)
+    #:use-module (guix build-system copy)
+    #:use-module (guix packages)
+    #:use-module (ice-9 match)
+    #:use-module (srfi srfi-1)
+    #:use-module (nonguix utils)
+    #:export (%binary-build-system-modules
+              default-patchelf
+              default-glibc
+              lower
+              binary-build
+              binary-build-system))
+
+  ;; Commentary:
+  ;;
+  ;; Standard build procedure for binary packages.  This is implemented as an
+  ;; extension of `copy-build-system'.
+  ;;
+  ;; Code:
+
+  (define-public (to32 package64)
+    "Build package for i686-linux.
+  Only x86_64-linux and i686-linux are supported.
+  - If i686-linux, return the package unchanged.
+  - If x86_64-linux, return the 32-bit version of the package."
+    (match (%current-system)
+      ("x86_64-linux"
+       (package
+         (inherit package64)
+         (arguments `(#:system "i686-linux"
+                      ,@(package-arguments package64)))))
+      (_ package64)))
+
+
+
+  (define %binary-build-system-modules
+    ;; Build-side modules imported by default.
+    `((nonguix build binary-build-system)
+      (nonguix build utils)
+      ,@%copy-build-system-modules))
+
+  (define (default-patchelf)
+    "Return the default patchelf package."
+
+    ;; Do not use `@' to avoid introducing circular dependencies.
+    (let ((module (resolve-interface '(gnu packages elf))))
+      (module-ref module 'patchelf)))
+
+  (define (default-glibc)
+    "Return the default glibc package."
+    ;; Do not use `@' to avoid introducing circular dependencies.
+    (let ((module (resolve-interface '(gnu packages base))))
+      (module-ref module 'glibc)))
+
+  (define* (lower name
+                  #:key source inputs native-inputs outputs system target
+                  (patchelf (default-patchelf))
+                  (glibc (default-glibc))
+                  #:allow-other-keys
+                  #:rest arguments)
+    "Return a bag for NAME."
+    (define private-keywords
+      '(#:target #:patchelf #:inputs #:native-inputs))
+
+    (and (not target)                               ;XXX: no cross-compilation
+         (bag
+           (name name)
+           (system system)
+           (host-inputs `(,@(if source
+                                `(("source" ,source))
+                                '())
+                          ,@inputs
+                          ;; Keep the standard inputs of 'gnu-build-system'.
+                          ,@(standard-packages)))
+           (build-inputs `(("patchelf" ,patchelf)
+                           ,@native-inputs
+                           ;; If current system is i686, the *32 packages will be the
+                           ;; same as the non-32, but that's OK.
+                           ("libc32" ,(to32 glibc))))
+           (outputs outputs)
+           (build binary-build)
+           (arguments (strip-keyword-arguments private-keywords arguments)))))
+
+  (define* (binary-build name inputs
+                         #:key
+                         guile source
+                         (outputs '("out"))
+                         (patchelf-plan ''())
+                         (install-plan ''(("." "./")))
+                         (search-paths '())
+                         (out-of-source? #t)
+                         (validate-runpath? #t)
+                         (patch-shebangs? #t)
+                         (strip-binaries? #t)
+                         (strip-flags ''("--strip-debug"))
+                         (strip-directories ''("lib" "lib64" "libexec"
+                                               "bin" "sbin"))
+                         (phases '(@ (nonguix build binary-build-system)
+                                     %standard-phases))
+                         (system (%current-system))
+                         (imported-modules %binary-build-system-modules)
+                         (modules '((nonguix build binary-build-system)
+                                    (guix build utils)
+                                    (nonguix build utils)))
+                         (substitutable? #t)
+                         allowed-references
+                         disallowed-references)
+    "Build SOURCE using PATCHELF, and with INPUTS. This assumes that SOURCE
+    provides its own binaries."
+    (define builder
+      (with-imported-modules imported-modules
+        #~(begin
+            (use-modules #$@modules)
+
+            #$(with-build-variables inputs outputs
+                                    #~(binary-build #:source #+source
+                                                    #:system #$system
+                                                    #:outputs %outputs
+                                                    #:inputs %build-inputs
+                                                    #:patchelf-plan #$patchelf-plan
+                                                    #:install-plan #$install-plan
+                                                    #:search-paths '#$(map search-path-specification->sexp
+                                                                           search-paths)
+                                                    #:phases #$phases
+                                                    #:out-of-source? #$out-of-source?
+                                                    #:validate-runpath? #$validate-runpath?
+                                                    #:patch-shebangs? #$patch-shebangs?
+                                                    #:strip-binaries? #$strip-binaries?
+                                                    #:strip-flags #$strip-flags
+                                                    #:strip-directories #$strip-directories)))))
+
+    (mlet %store-monad ((guile (package->derivation (or guile (default-guile))
+                                                    system #:graft? #f)))
+      (gexp->derivation name builder
+                        #:system system
+                        #:target #f
+                        #:substitutable? substitutable?
+                        #:allowed-references allowed-references
+                        #:disallowed-references disallowed-references
+                        #:guile-for-build guile)))
+
+  (define binary-build-system
+    (build-system
+      (name 'binary)
+      (description "The standard binary build system")
+      (lower lower)))
+
+    ;;; binary.scm ends here
+
+
+#+end_src
 * Writing a GNU Guix Package
 #+begin_src scheme
   (define-module (ise packages hello)
@@ -108,7 +685,7 @@ We need to provide two public keys. I will be encoding their data as datastructu
 
   (define* (machine-system-for-services services ssh-key guix-key
                                         #:key
-                                        (ops-user "opsadmin")
+                                        (ops-user "sysadmin")
                                         (locale "en_US.utf8")
                                         (timezone "Etc/UTC")
                                         (bootloader-target "/dev/sda")

@@ -13,7 +13,7 @@
 
 (define* (machine-system-for-services services ssh-key guix-key
                                       #:key
-                                      (ops-user "opsadmin")
+                                      (ops-user "sysadmin")
                                       (locale "en_US.utf8")
                                       (timezone "Etc/UTC")
                                       (bootloader-target "/dev/sda")
