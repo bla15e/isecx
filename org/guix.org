@@ -473,8 +473,8 @@ python-jinja2-cli-latest
 
   (define %binary-build-system-modules
     ;; Build-side modules imported by default.
-    `((nonguix build binary-build-system)
-      (nonguix build utils)
+    `((isecx build binary-build-system)
+      (isecx build utils)
       ,@%copy-build-system-modules))
 
   (define (default-patchelf)
@@ -533,13 +533,13 @@ python-jinja2-cli-latest
                          (strip-flags ''("--strip-debug"))
                          (strip-directories ''("lib" "lib64" "libexec"
                                                "bin" "sbin"))
-                         (phases '(@ (nonguix build binary-build-system)
+                         (phases '(@ (isecx build binary-build-system)
                                      %standard-phases))
                          (system (%current-system))
                          (imported-modules %binary-build-system-modules)
-                         (modules '((nonguix build binary-build-system)
+                         (modules '((isecx build binary-build-system)
                                     (guix build utils)
-                                    (nonguix build utils)))
+                                    (isecx build utils)))
                          (substitutable? #t)
                          allowed-references
                          disallowed-references)
