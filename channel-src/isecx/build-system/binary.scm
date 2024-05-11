@@ -45,8 +45,8 @@ Only x86_64-linux and i686-linux are supported.
 
 (define %binary-build-system-modules
   ;; Build-side modules imported by default.
-  `((nonguix build binary-build-system)
-    (nonguix build utils)
+  `((isecx build binary-build-system)
+    (isecx build utils)
     ,@%copy-build-system-modules))
 
 (define (default-patchelf)
@@ -105,13 +105,13 @@ Only x86_64-linux and i686-linux are supported.
                        (strip-flags ''("--strip-debug"))
                        (strip-directories ''("lib" "lib64" "libexec"
                                              "bin" "sbin"))
-                       (phases '(@ (nonguix build binary-build-system)
+                       (phases '(@ (isecx build binary-build-system)
                                    %standard-phases))
                        (system (%current-system))
                        (imported-modules %binary-build-system-modules)
-                       (modules '((nonguix build binary-build-system)
+                       (modules '((isecx build binary-build-system)
                                   (guix build utils)
-                                  (nonguix build utils)))
+                                  (isecx build utils)))
                        (substitutable? #t)
                        allowed-references
                        disallowed-references)
