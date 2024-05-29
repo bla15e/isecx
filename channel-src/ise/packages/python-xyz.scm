@@ -32,7 +32,7 @@
        (sha256
         (base32 "0srw45wfrbqm69jszd1yznypzpaa0ab7fl3jv50xdcwlw3h3lfzh"))))
     (build-system pyproject-build-system)
-    (home-page null)
+    (home-page "https://github.com/ChrisBuilds/terminaltexteffects")
     (synopsis
      "A collection of visual effects that can be applied to terminal piped stdin text.")
     (description
