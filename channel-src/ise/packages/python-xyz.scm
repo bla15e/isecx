@@ -21,6 +21,25 @@
   #:use-module (srfi srfi-1)
   #:use-module (srfi srfi-26))
 
+(define-public python-terminaltexteffects
+  (package
+    (name "python-terminaltexteffects")
+    (version "0.10.0")
+    (source
+     (origin
+       (method url-fetch)
+       (uri (pypi-uri "terminaltexteffects" version))
+       (sha256
+        (base32 "0srw45wfrbqm69jszd1yznypzpaa0ab7fl3jv50xdcwlw3h3lfzh"))))
+    (build-system pyproject-build-system)
+    (home-page null)
+    (synopsis
+     "A collection of visual effects that can be applied to terminal piped stdin text.")
+    (description
+     "This package provides a collection of visual effects that can be applied to
+terminal piped stdin text.")
+    (license license:expat)))
+
 (define-public python-jinja2-cli-latest
   (package
     (name "python-jinja2-cli")

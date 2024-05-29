@@ -1,24 +1,22 @@
 {{ define "main" }}
 <div class="prose dark:prose-invert max-w-none">
+  <div class="flex w-full flex-row justify-center">
+    <div class="w-full fill-current w-10/12">
+    
+    </div>
+  </div>
   {{ $posts := where .Site.RegularPages "Type" "posts" }}
+  
+  <div class="w-full text-center space-y-10">
+    {{ partial "widgets/vector-cover.html" (dict "Vector" "cx") . }}
+    <h1>{{ .Title }}</h1>
+  </div>
   <div class="">
     {{ .Content }}
   </div>
-  <section class="grid grid-cols-1 lg:grid-cols-2 gap-x-4">
-    {{ partial "post-list.html" (dict "Posts" $posts "Title" "Newest" "Limit" 7) }}
-    {{ partial "post-list.html" (dict "Posts" $posts "Title" "Favorites" "Limit" 7) }}
-  </section>
-  <div class="max-h-20 max-w-20">
-    {{ partial "vectors/ise-icon-reverse.html" . }}
+  <div class="w-full text-center space-y-10">
+    {{ partial "widgets/vector-cover.html" (dict "Vector" "ise-icon-reverse") . }}
   </div>
-  <hr/>
-  <section class="grid grid-cols-1 lg:grid-cols-2 gap-x-4">
-    {{ partial "post-list.html" (dict "Posts" $posts "Title" "Scribbles" "Limit" 3) }}
-    {{ partial "post-list.html" (dict "Posts" $posts "Title" "Literate Programs" "Limit" 7) }}
-    {{ partial "post-list.html" (dict "Posts" $posts "Title" "Hacking" "Limit" 7) }}
-    {{ partial "post-list.html" (dict "Posts" $posts "Title" "Travel" "Limit" 7) }}
-    {{ partial "post-list.html" (dict "Posts" $posts "Title" "Guix" "Limit" 7) }}
-    {{ partial "post-list.html" (dict "Posts" $posts "Title" "Time for My Stories" "Limit" 7) }}
-  </section>
+
 </div>
 {{ end }}

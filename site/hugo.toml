@@ -1,7 +1,7 @@
 baseURL = 'https://ise.cx'
 languageCode = 'en-us'
 title = 'isecx'
-theme = "../../../ap-lit"
+theme = "../../../advert-ise"
 [params]
   description = "World Wide Website of Ise ChannelX"
 

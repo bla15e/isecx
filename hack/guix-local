@@ -1,0 +1,15 @@
+:noweb yes :comments noweb :tangle-mode (identity #o755)
+ <<hackscript-prefix>>
+ main() {
+   tempfile=$(mktemp)
+   cat << EOF > "$tempfile"
+ (list
+   (channel
+     (name 'isecx)
+     (url "file://$(pwd)")
+     (branch "$(git rev-parse --abbrev-ref HEAD)")))
+ EOF
+
+   guix time-machine -C $tempfile --debug=3 --keep-failed -- "$@"
+ }
+ main "$@"

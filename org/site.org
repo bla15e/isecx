@@ -1,0 +1,40 @@
+#+date: 2024-04-03T21:09:28-04:00
+#+hugo_front_matter_key_replace: description>summary
+#+property: header-args :eval never-export
+
+* Install ISECX Guix Channel
+:PROPERTIES:
+:EXPORT_HUGO_SECTION:
+:EXPORT_FILE_NAME: installation
+:EXPORT_DESCRIPTION: Extend your GNU Guix installation with ISECX
+:EXPORT_HUGO_MENU: :menu "nav" :weight 1 :name Channel Installation :url /installation
+:END:
+Installing and using the advert-ise theme for use in your newest hugo website couldn't be easier!
+
+* About Ise Software
+:PROPERTIES:
+:EXPORT_HUGO_SECTION:
+:EXPORT_FILE_NAME: company
+:EXPORT_DESCRIPTION: An accurate little something something about your favorite hip tech company, Ise.
+:EXPORT_HUGO_MENU: :menu "nav" :weight 2 :name Company :url /company
+:END:
+Software that empowers - is such a thing even possible in today's age of tech nhilism and wealth! One word for that - YES! Ise will address this criticial shortage of Software that Empowers!
+
+
+* ISECX - THe ISE Channel X 
+:PROPERTIES:
+:EXPORT_HUGO_SECTION: 
+:EXPORT_FILE_NAME: _index
+:EXPORT_DESCRIPTION: ISE Public GNU Guix Channel Website
+:END:
+A collection of helpful GNU Guix programs. Includes implementations of packages, build-systems, operating-systems, machines, home environments, and more.
+
+#+begin_src scheme
+(cons* (channel
+       (name 'isecx)
+       (url "https://github.com/bla15e/isecx")
+       (branch "main"))
+       %default-channels)
+#+end_src
+
+If you're interested in the installation of this channel, visit the Installation page. If you're curious about the creation and maintenance of this channel, visit our Company page to learn about Ise Company. To explore what ISECX channel has, 

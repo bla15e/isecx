@@ -193,7 +193,21 @@ I will implement a shells cript that takes in a hostname. It will infect that ho
   main
 
 #+end_src
-
+* Shipping the Website :babel:guix:shell:rsync:
+#+name: ship-site-to-sh
+#+begin_src shell :exports none :tangle ../hack/ship-site-to.sh :noweb yes :mkdirp yes :comments noweb :tangle-mode (identity #o755)  
+  <<hackscript-prefix>>
+  
+  COPYUSER=root
+  SITENAME="ise.cx"
+  main() {
+    tempfile=$(mktemp -d)
+    hugo --destination "$tempfile" --source "./site/"
+    echo "Copying Site '$SITENAME' with $COPYUSER@$1"
+    rsync -av --delete --progress "$tempfile/" "$COPYUSER@$1:/var/www/html/$SITENAME"
+  }
+  main "$@"
+#+end_src
 * Building the Website :babel:hugo:webdev:
 :PROPERTIES:
 :EXPORT_FILE_NAME: hugo-tailwind-hacking
@@ -206,7 +220,7 @@ This is how we confiugre our project to use the Hugo static site builder.
   baseURL = 'https://ise.cx'
   languageCode = 'en-us'
   title = 'isecx'
-  theme = "../../../ap-lit"
+  theme = "../../../advert-ise"
   [params]
     description = "World Wide Website of Ise ChannelX"
 
